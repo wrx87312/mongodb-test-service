@@ -14,6 +14,11 @@ MONGO_URI = os.getenv("MONGO_URI") or "mongodb+srv://wsbmerito:wsb123@cluster0.j
 DB_NAME = "test"
 COLLECTION_NAME = "test_render"
 
+doc = {
+    "test": "insert",
+    "timestamp": datetime.now(timezone.utc).isoformat()
+}
+
 def log_result(test_name, status, message):
     print(f"{'✅' if status == 'PASS' else '❌'} [{test_name}] {message}")
     report_data.append({
@@ -91,32 +96,38 @@ def zip_reports(zip_filename="raport_mongodb.zip"):
 
 @app.route("/generuj-raport")
 def generate_report():
-    report_data.clear()
-    if not MONGO_URI:
-        return "Brak zmiennej środowiskowej MONGO_URI", 500
+    try:
+        report_data.clear()
+        if not MONGO_URI:
+            return "Brak zmiennej środowiskowej MONGO_URI", 500
 
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
 
-    if test_connection(client):
-        db = client[DB_NAME]
-        collection = db[COLLECTION_NAME]
+        if test_connection(client):
+            db = client[DB_NAME]
+            collection = db[COLLECTION_NAME]
 
-        test_empty_collection_behavior(collection)
-        test_insert_and_read(collection)
-        test_schema_validation(collection)
+            test_empty_collection_behavior(collection)
+            test_insert_and_read(collection)
+            test_schema_validation(collection)
 
-        save_report_csv()
-        save_report_html()
-        zip_reports()
+            save_report_csv()
+            save_report_html()
+            zip_reports()
 
-        return send_file("raport_mongodb.zip", as_attachment=True)
-    else:
-        return "Błąd połączenia z MongoDB", 500
+            return send_file("raport_mongodb.zip", as_attachment=True)
+        else:
+            return "Błąd połączenia z MongoDB", 500
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Internal Server Error: {e}", 500
 
 @app.route("/")
 def home():
     return "<h2>MongoDB Tester Flask API</h2><p>Wejdź na <a href='/generuj-raport'>/generuj-raport</a> aby pobrać raport ZIP.</p>"
 
 if __name__ == "__main__":
+    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
