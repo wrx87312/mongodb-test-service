@@ -1,16 +1,21 @@
-from flask import Flask, send_file
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
 import os
 import uuid
-from datetime import datetime
 import csv
 import zipfile
 import traceback
+from datetime import datetime
+from flask import Flask, send_file
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
+from dotenv import load_dotenv
+
+# ✅ Wczytanie zmiennych środowiskowych
+load_dotenv()
 
 app = Flask(__name__)
 report_data = []
 
+# ✅ Pobieranie zmiennych
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = "test"
 COLLECTION_NAME = "test_render"
@@ -49,7 +54,7 @@ def test_empty_collection_behavior(collection):
     print("🧼 Wykonuję test pustej kolekcji...")
     collection.delete_many({})
     results = list(collection.find({}))
-    if len(results) == 0:
+    if not results:
         log_result("TEST 3", "PASS", "Kolekcja pusta – brak danych jak oczekiwano.")
     else:
         log_result("TEST 3", "FAIL", f"Kolekcja nie jest pusta: {results}")
@@ -106,7 +111,7 @@ def generate_report():
         report_data.clear()
 
         if not MONGO_URI:
-            print("❌ Brak zmiennej MONGO_URI")
+            print("❌ Brak zmiennej MONGO_URI – upewnij się, że plik .env istnieje.")
             return "Brak zmiennej środowiskowej MONGO_URI", 500
 
         client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
@@ -147,4 +152,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Aplikacja startuje na porcie {port}...")
     app.run(debug=False, host="0.0.0.0", port=port)
-
