@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 import csv
 import zipfile
 import traceback
@@ -25,6 +25,7 @@ def log_result(test_name, status, message):
     })
 
 def test_connection(client):
+    print("🔌 Testuję połączenie z MongoDB...")
     try:
         client.admin.command('ping')
         log_result("TEST 1", "PASS", "Połączenie z MongoDB powiodło się.")
@@ -34,6 +35,7 @@ def test_connection(client):
         return False
 
 def test_insert_and_read(collection):
+    print("🧪 Wykonuję test INSERT/READ...")
     doc_id = str(uuid.uuid4())
     test_doc = {"_id": doc_id, "test": "insert", "status": "ok"}
     collection.insert_one(test_doc)
@@ -44,6 +46,7 @@ def test_insert_and_read(collection):
         log_result("TEST 2", "FAIL", "Insert lub odczyt dokumentu nie powiódł się.")
 
 def test_empty_collection_behavior(collection):
+    print("🧼 Wykonuję test pustej kolekcji...")
     collection.delete_many({})
     results = list(collection.find({}))
     if len(results) == 0:
@@ -52,6 +55,7 @@ def test_empty_collection_behavior(collection):
         log_result("TEST 3", "FAIL", f"Kolekcja nie jest pusta: {results}")
 
 def test_schema_validation(collection):
+    print("📋 Wykonuję test zgodności ze schematem...")
     test_doc = {"name": "Jan", "age": 30}
     try:
         collection.insert_one(test_doc)
@@ -60,6 +64,7 @@ def test_schema_validation(collection):
         log_result("TEST 4", "FAIL", f"Wstawienie niezgodne ze schematem: {e}")
 
 def save_report_csv(filename="raport.csv"):
+    print("💾 Zapisuję raport CSV...")
     with open(filename, "w", newline='', encoding="utf-8") as csvfile:
         fieldnames = ["Test", "Status", "Komunikat", "Czas"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -73,6 +78,7 @@ def save_report_csv(filename="raport.csv"):
             })
 
 def save_report_html(filename="raport.html"):
+    print("💾 Zapisuję raport HTML...")
     with open(filename, "w", encoding="utf-8") as htmlfile:
         htmlfile.write("<html><head><meta charset='utf-8'><title>Raport testów MongoDB</title></head><body>")
         htmlfile.write("<h1>Raport testów MongoDB</h1><table border='1'>")
@@ -86,15 +92,21 @@ def save_report_html(filename="raport.html"):
         htmlfile.write("</table></body></html>")
 
 def zip_reports(zip_filename="raport_mongodb.zip"):
+    print("📦 Pakuję pliki raportu do ZIP...")
     with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
         zipf.write("raport.csv")
         zipf.write("raport.html")
 
 @app.route("/generuj-raport")
 def generate_report():
+    print("▶️ Wywołano /generuj-raport")
+    print("🔍 MONGO_URI =", MONGO_URI)
+
     try:
         report_data.clear()
+
         if not MONGO_URI:
+            print("❌ Brak zmiennej MONGO_URI")
             return "Brak zmiennej środowiskowej MONGO_URI", 500
 
         client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
@@ -111,22 +123,28 @@ def generate_report():
             save_report_html()
             zip_reports()
 
+            print("✅ Raport wygenerowany i ZIP gotowy do wysyłki.")
             return send_file("raport_mongodb.zip", as_attachment=True)
         else:
+            print("❌ Nie udało się połączyć z MongoDB.")
             return "Błąd połączenia z MongoDB", 500
     except Exception as e:
+        print("💥 Błąd krytyczny podczas generowania raportu!")
         traceback.print_exc()
         return f"Internal Server Error: {e}", 500
 
 @app.route("/healthz")
 def health():
+    print("📡 Wywołano /healthz")
     return "OK", 200
 
 @app.route("/")
 def home():
+    print("🏠 Wejście na stronę główną")
     return "<h2>MongoDB Tester Flask API</h2><p>Wejdź na <a href='/generuj-raport'>/generuj-raport</a> aby pobrać raport ZIP.</p>"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    print(f"🚀 Aplikacja startuje na porcie {port}...")
     app.run(debug=False, host="0.0.0.0", port=port)
 
