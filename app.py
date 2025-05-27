@@ -6,18 +6,14 @@ import uuid
 from datetime import datetime, timezone
 import csv
 import zipfile
+import traceback
 
 app = Flask(__name__)
 report_data = []
 
-MONGO_URI = os.getenv("MONGO_URI") or "mongodb+srv://wsbmerito:wsb123@cluster0.jy3w7uq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = "test"
 COLLECTION_NAME = "test_render"
-
-doc = {
-    "test": "insert",
-    "timestamp": datetime.now(timezone.utc).isoformat()
-}
 
 def log_result(test_name, status, message):
     print(f"{'✅' if status == 'PASS' else '❌'} [{test_name}] {message}")
@@ -119,15 +115,18 @@ def generate_report():
         else:
             return "Błąd połączenia z MongoDB", 500
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return f"Internal Server Error: {e}", 500
+
+@app.route("/healthz")
+def health():
+    return "OK", 200
 
 @app.route("/")
 def home():
     return "<h2>MongoDB Tester Flask API</h2><p>Wejdź na <a href='/generuj-raport'>/generuj-raport</a> aby pobrać raport ZIP.</p>"
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
+
