@@ -6,7 +6,6 @@ import uuid
 from datetime import datetime, timezone
 import csv
 import zipfile
-import pytest
 
 app = Flask(__name__)
 report_data = []
@@ -14,31 +13,6 @@ report_data = []
 MONGO_URI = os.getenv("MONGO_URI") or "mongodb+srv://wsbmerito:wsb123@cluster0.jy3w7uq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 DB_NAME = "test"
 COLLECTION_NAME = "test_render"
-
-doc = {
-    "test": "insert",
-    "timestamp": datetime.now(timezone.utc).isoformat()
-}
-
-# --- FIXTURES dla pytest ---
-
-@pytest.fixture(scope="module")
-def client():
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
-    yield client
-    client.close()
-
-@pytest.fixture(scope="module")
-def collection(client):
-    db = client[DB_NAME]
-    coll = db[COLLECTION_NAME]
-    yield coll
-    # Czyści kolekcję po testach (opcjonalnie)
-    coll.delete_many({})
-
-# ----------------------
-# TESTY
-# ----------------------
 
 def log_result(test_name, status, message):
     print(f"{'✅' if status == 'PASS' else '❌'} [{test_name}] {message}")
@@ -84,10 +58,6 @@ def test_schema_validation(collection):
     except Exception as e:
         log_result("TEST 4", "FAIL", f"Wstawienie niezgodne ze schematem: {e}")
 
-# ----------------------
-# RAPORTY
-# ----------------------
-
 def save_report_csv(filename="raport.csv"):
     with open(filename, "w", newline='', encoding="utf-8") as csvfile:
         fieldnames = ["Test", "Status", "Komunikat", "Czas"]
@@ -119,10 +89,6 @@ def zip_reports(zip_filename="raport_mongodb.zip"):
         zipf.write("raport.csv")
         zipf.write("raport.html")
 
-# ----------------------
-# FLASK ROUTE
-# ----------------------
-
 @app.route("/generuj-raport")
 def generate_report():
     report_data.clear()
@@ -152,4 +118,5 @@ def home():
     return "<h2>MongoDB Tester Flask API</h2><p>Wejdź na <a href='/generuj-raport'>/generuj-raport</a> aby pobrać raport ZIP.</p>"
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
